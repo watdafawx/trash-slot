@@ -23,6 +23,12 @@ when you need one exact stack.
 
 Safe to add or remove at any time. Removing the mod destroys whatever is in the slot.
 
+## Themes
+
+The slot beside the inventory follows the theme each player picks in [FSE std](https://github.com/watdafawx/fse#themes)'s theme window (its button on the shortcut bar), when FSE std 0.6+ is installed: 12 themes, colours edited live with the FSE loader. Without FSE std it looks as before.
+
+![The slot beside the inventory in Vulcanus, Fulgora and Aquilo](images/themes.jpg)
+
 ## Install
 
 Copy this folder into your mods folder (`%APPDATA%\Factorio\mods`) as `trash-slot`.
