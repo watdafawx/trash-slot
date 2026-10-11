@@ -4,9 +4,12 @@
 -- spoilage, blueprints).
 
 -- dragging the slot anywhere comes from fse-std (optional); without it the grip cycles sides and floating
-local dnd, events, input
+local dnd, events, input, theme
 if script.active_mods["fse-std"] then
   dnd, events, input = require("__fse-std__/dnd"), require("__fse-std__/events"), require("__fse-std__/input")
+  -- (themes: fse-std 0.6+; the player's theme from fse-std's theme window)
+  local ok, t = pcall(require, "__fse-std__/theme")
+  theme = ok and t.adopt and t or nil
 end
 
 local SIDES = { "left", "bottom", "right", "top" }
@@ -181,6 +184,7 @@ local function build(player)
     bar.style.width, bar.style.height = 10, 40
     bar.drag_target = f
     fill_frame(f, false)
+    if theme then theme.adopt(f) end
     f.location = { d.x or 200, d.y or 200 }
     show_float(player)
   else
@@ -197,6 +201,7 @@ local function build(player)
         dnd.draggable(bar, { kind = "trash-slot-move", preview = true, sprite = "utility/trash" })
       end
       fill_frame(f, vertical)
+      if theme then theme.adopt(f) end
     end
   end
   refresh(player)
@@ -331,7 +336,7 @@ if dnd then
       float_at(player, m.x - 58 * s, m.y - 36 * s) -- (the slot centred under the cursor)
     end
   end)
-  events.register({ input.handlers, dnd.handlers, handlers })
+  events.register({ input.handlers, dnd.handlers, theme and theme.handlers or {}, handlers })
 else
   for ev, fn in pairs(handlers) do script.on_event(ev, fn) end
 end
