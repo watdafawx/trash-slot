@@ -1,2 +1,2 @@
 {"name": "ts-test", "version": "0.0.1", "title": "trash slot test", "author": "mtopfox", "factorio_version": "2.0",
- "dependencies": ["base", "trash-slot"]}
+ "dependencies": ["base", "wx-trash-slot"]}

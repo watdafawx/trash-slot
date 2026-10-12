@@ -31,7 +31,7 @@ The slot beside the inventory follows the theme each player picks in [FSE std](h
 
 ## Install
 
-Copy this folder into your mods folder (`%APPDATA%\Factorio\mods`) as `trash-slot`.
+Copy this folder into your mods folder (`%APPDATA%\Factorio\mods`) as `wx-trash-slot` (the internal name: plain `trash-slot` is another mod on the portal).
 
 `test\run.py` runs the headless tests (set `FACTORIO_EXE` if the game isn't in a usual Steam library).
 `test\run_gui.py` opens a real game window and saves screenshots to `test\run\script-output` (close your own game

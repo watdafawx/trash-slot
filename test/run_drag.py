@@ -20,13 +20,13 @@ MODS = RUN / "ts-mods-drag"
 OUT = RUN / "script-output"
 
 MODS.mkdir(parents=True, exist_ok=True)
-for name in ("trash-slot", "ts-dragtest", "fse-std"):
+for name in ("wx-trash-slot", "ts-dragtest", "fse-std"):
     if (MODS / name).exists():
         shutil.rmtree(MODS / name)
-shutil.copytree(MOD, MODS / "trash-slot", ignore=shutil.ignore_patterns("test", ".git"))
+shutil.copytree(MOD, MODS / "wx-trash-slot", ignore=shutil.ignore_patterns("test", ".git"))
 shutil.copytree(HERE / "ts-dragtest", MODS / "ts-dragtest")
 shutil.copytree(ROOT.parent / "fse" / "mods" / "fse-std", MODS / "fse-std")
-names = ["base", "elevated-rails", "quality", "space-age", "fse-std", "trash-slot", "ts-dragtest"]
+names = ["base", "elevated-rails", "quality", "space-age", "fse-std", "wx-trash-slot", "ts-dragtest"]
 (MODS / "mod-list.json").write_text(json.dumps({"mods": [{"name": n, "enabled": True} for n in names]}))
 
 for f in OUT.glob("ts-drag*"):
