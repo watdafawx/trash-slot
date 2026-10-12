@@ -42,20 +42,41 @@ script.on_event(defines.events.on_tick, function(e)
     R("hover", 1, false)
     check("delete on the slot destroys it", R("count", R("trash", 1)) == 0 and main.get_item_count("iron-plate") == 200)
     check("slot empty again", button(p).sprite == "utility/trash" and button(p).number == nil)
+    local undo = button(p).parent.parent["trash-slot-undo"]
+    check("undo button shows what was destroyed", undo.visible and R("count", R("undo", 1)) == 50
+      and undo.tooltip ~= nil)
+    R("click", 1, "undo")
+    check("undo puts it back", main.get_item_count("iron-plate") == 250 and R("undo", 1).is_empty() and not undo.visible)
+    local space = undo.parent["trash-slot-undo-space"]
+    check("undo's place kept while hidden (the frame keeps its size)", space and space.visible
+      and space.style.minimal_width == undo.style.minimal_width)
+    check("grip shows the move icon", undo.parent["trash-slot-move"].sprite:find("trash%-slot%-move") ~= nil,
+      undo.parent["trash-slot-move"].sprite)
     R("press", 1, true, IRON)
-    check("shift-delete took all iron", R("count", R("trash", 1)) == 200 and main.get_item_count("iron-plate") == 0)
+    check("shift-delete took all iron", R("count", R("trash", 1)) == 250 and main.get_item_count("iron-plate") == 0)
     R("dock", 1, 2)
     check("docked bottom", button(p) ~= nil and p.gui.relative["trash-slot-controller_gui"].anchor.position
-      == defines.relative_gui_position.bottom and button(p).number == 200)
+      == defines.relative_gui_position.bottom and button(p).number == 250)
     shot(p, "ts-gui-2-bottom.png")
   elseif t == 80 then
     R("dock", 1, 3)
     shot(p, "ts-gui-3-right.png")
+  elseif t == 90 then
+    -- (right-click destroys: the undo button comes back)
+    R("press", 1, false, { base_type = "item", derived_type = "item", name = "copper-plate", quality = "normal" })
+    check("trashing again destroys the previous, undoable", R("count", R("undo", 1)) == 250)
+    R("dock", 1, 5) -- (first float: no place yet)
+    local f = p.gui.screen["trash-slot-float"]
+    local res, sc = p.display_resolution, p.display_scale
+    check("first float sits left of the centred inventory", f and f.location.x > 0
+      and f.location.x + 120 * sc < res.width / 2 - 400 * sc and math.abs(f.location.y - res.height / 2) < 120 * sc,
+      f and (f.location.x .. "," .. f.location.y .. " of " .. res.width .. "x" .. res.height .. " @" .. sc))
+    shot(p, "ts-gui-4a-float-default.png")
   elseif t == 100 then
     R("dock", 1, 5, 300, 250)
     local f = p.gui.screen["trash-slot-float"]
     check("floating: no anchored frames, own frame shown", f and f.visible and f.location.x == 300
-      and p.gui.relative["trash-slot-controller_gui"] == nil and f["trash-slot-inner"]["trash-slot-button"].number == 200)
+      and p.gui.relative["trash-slot-controller_gui"] == nil and f["trash-slot-inner"]["trash-slot-button"].number == 30)
     shot(p, "ts-gui-4-float.png")
   elseif t == 110 then
     p.opened = nil

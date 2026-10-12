@@ -20,7 +20,7 @@ MODS = RUN / "ts-mods-drag"
 OUT = RUN / "script-output"
 
 MODS.mkdir(parents=True, exist_ok=True)
-for name in ("wx-trash-slot", "ts-dragtest", "fse-std"):
+for name in ("wx-trash-slot", "trash-slot", "ts-dragtest", "fse-std"):  # (trash-slot: the name before 0.3.4)
     if (MODS / name).exists():
         shutil.rmtree(MODS / name)
 shutil.copytree(MOD, MODS / "wx-trash-slot", ignore=shutil.ignore_patterns("test", ".git"))

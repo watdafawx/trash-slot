@@ -4,13 +4,16 @@ A Factorio 2.0 port of the Minecraft mod [TrashSlot](https://github.com/TwelveIt
 attached to your inventory window (the character screen, chests, vehicles, machines).
 
 - **Delete** on a stack you hold, or on one you hover, throws it into the slot. What was in the slot before is
-  destroyed, so the slot always holds your most recent delete.
+  destroyed (see Undo), so the slot always holds your most recent delete.
 - **Shift+Delete** throws in every stack of that item (same quality).
 - **Click** the slot to take the stack back. **Shift-click** puts everything back in your inventory. **Right-click**,
-  or **Delete** while hovering the slot, destroys it for good. Clicking while holding a stack trashes that stack.
+  or **Delete** while hovering the slot, destroys it. Clicking while holding a stack trashes that stack.
+- **Undo:** whatever was destroyed last (by any of the above) can come back once. A flying text names it, and an
+  undo button appears beside the slot: click it to put the stack back into your inventory. The next destroy
+  replaces it.
 - **Moving it:** with [FSE](https://github.com/watdafawx/fse) (`fse-std`), drag the slot (or its bar) anywhere on the screen; it
   floats where you let go, or docks to the window when you let go against its edge (within 2 px, read from the
-  game's own GUI through FSE) and shows while the inventory or a chest/machine window is open. The small grip button
+  game's own GUI through FSE) and shows while the inventory or a chest/machine window is open. The small grip button (four arrows)
   cycles left, bottom, right and top of the window, then floating again. Without FSE (or in multiplayer) the grip
   does the same, and the floating slot moves by its drag bar. Each player keeps their own place.
 

@@ -1,0 +1,13 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.3.5
+Date: 2026-10-12
+  Changes:
+    - One undo: what a delete, a right-click or trashing a new stack destroys is kept. A flying text at the cursor
+      names it, and an undo button beside the slot (shown only then, its tooltip naming the stack) puts it back into
+      the inventory. The next destroy replaces it. Its place stays reserved while there is nothing to undo, so the
+      slot's frame doesn't change size when it comes and goes.
+    - The grip shows four arrows ("move") instead of the game's ">" (a dark one on light themes).
+    - The grip, the undo button and the drag bar are 24 px (were 20 and 10), easier to hit.
+    - The first time the slot floats it sits left of the character screen, from the screen's size and scale (was a
+      fixed 200, 200).
+    - With FSE std themes: padding 6, the grip themed, its icon dark on light themes.

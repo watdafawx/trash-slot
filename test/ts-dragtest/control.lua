@@ -40,7 +40,7 @@ script.on_event(defines.events.on_tick, function(e)
     R("point", 1, false)
     mock({ x = 400, y = 300 })
   elseif t == 80 then
-    check("dragging from the bar: a ghost follows the cursor", p.gui.screen["fstd_dnd_ghost_trash-slot"] ~= nil)
+    check("dragging from the bar: a ghost follows the cursor", p.gui.screen["fstd_dnd_ghost_wx-trash-slot"] ~= nil)
     check("no extra slots shown", #p.gui.relative.children == 9, #p.gui.relative.children)
     mock({ x = 900, y = 250 })
   elseif t == 84 then
@@ -52,7 +52,7 @@ script.on_event(defines.events.on_tick, function(e)
     check("floats where let go", w.side == 5 and f and f.visible and math.abs(f.location.x - (900 - 58 * p.display_scale)) < 2
       and math.abs(f.location.y - (250 - 36 * p.display_scale)) < 2, w.side .. " " .. (f and (f.location.x .. "," .. f.location.y) or "no frame"))
     check("anchored copies and ghost gone", rel["trash-slot-controller_gui"] == nil
-      and p.gui.screen["fstd_dnd_ghost_trash-slot"] == nil)
+      and p.gui.screen["fstd_dnd_ghost_wx-trash-slot"] == nil)
     shot(p, "ts-drag-2-dropped.png")
   elseif t == 100 then
     R("point", 1, true)

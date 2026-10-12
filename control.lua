@@ -1,7 +1,10 @@
 -- Trash Slot: a slot attached to the inventory window. Delete throws the held/hovered stack in (what was there is
 -- destroyed), Shift+Delete throws in every stack of that item, clicking the slot takes it back, Delete on the slot
--- destroys it for good. The trash is a script inventory per player, so items keep their data (armor grids,
--- spoilage, blueprints).
+-- destroys it. The trash is a script inventory per player, so items keep their data (armor grids, spoilage,
+-- blueprints).
+-- Undo: what was destroyed last (one level) waits in a second script inventory per player. A flying text at the
+-- cursor names it, and an undo button beside the slot (shown only while there is something to undo, its place kept
+-- empty otherwise) puts it back into the inventory. The next destroy replaces it.
 
 -- dragging the slot anywhere comes from fse-std (optional); without it the grip cycles sides and floating
 local dnd, events, input, theme
@@ -38,15 +41,48 @@ local function matching(inv, name, quality, all, out)
   end
 end
 
--- empties trash, then moves stacks into it (stacks: LuaItemStacks)
-local function fill(trash, stacks)
+local function undo_of(player)
+  storage.undo = storage.undo or {}
+  local inv = storage.undo[player.index]
+  if not (inv and inv.valid) then
+    inv = game.create_inventory(1)
+    storage.undo[player.index] = inv
+  end
+  return inv
+end
+
+-- what an inventory holds, for a message: { name, quality, count (all stacks) } of its first stack, or nil
+local function summary(inv)
+  local first, n = nil, 0
+  for i = 1, #inv do
+    local s = inv[i]
+    if s.valid_for_read then
+      first = first or { name = s.name, quality = s.quality.name }
+      n = n + s.count
+    end
+  end
+  if first then first.count = n end
+  return first
+end
+
+-- empties trash, then moves stacks into it (stacks: LuaItemStacks). What was in it is destroyed: with an undo
+-- inventory it goes there instead (replacing the previous undo). Returns summary() of what was destroyed, or nil.
+local function fill(trash, stacks, undo)
+  local gone = summary(trash)
+  if gone and undo then
+    undo.clear()
+    undo.resize(#trash)
+    for i = 1, #trash do undo[i].transfer_stack(trash[i]) end
+  end
   trash.clear()
   trash.resize(math.max(#stacks, 1))
   for i, s in ipairs(stacks) do trash[i].transfer_stack(s) end
+  return gone
 end
 
 -- the delete key: cursor stack if held, else name/quality looked up in sources (first inventory that has it wins)
-local function throw(trash, sources, cursor, name, quality, all)
+-- (returns true, and summary() of what that destroyed)
+local function throw(trash, sources, cursor, name, quality, all, undo)
   local stacks = {}
   if cursor and cursor.valid_for_read then
     name, quality = cursor.name, cursor.quality.name
@@ -60,8 +96,7 @@ local function throw(trash, sources, cursor, name, quality, all)
     end
   end
   if #stacks == 0 then return false end
-  fill(trash, stacks)
-  return true
+  return true, fill(trash, stacks, undo)
 end
 
 local function first(trash)
@@ -128,6 +163,15 @@ local function frames(player)
   return list
 end
 
+local GRIP = 24  -- (the grip, undo button and drag bar: big enough to hit)
+
+-- "[item=x,quality=q] Name x n" for a summary()
+local function what(g)
+  local proto = prototypes.item[g.name]
+  return { "trash-slot.stack", "[item=" .. g.name .. ",quality=" .. g.quality .. "]", proto and proto.localised_name or g.name,
+    g.count }
+end
+
 local function refresh(player)
   local trash = trash_of(player)
   local s = first(trash)
@@ -137,7 +181,17 @@ local function refresh(player)
     b.number = s and count(trash) or nil
     b.quality = s and s.quality.name ~= "normal" and s.quality or nil
     b.elem_tooltip = s and { type = "item-with-quality", name = s.name, quality = s.quality.name } or nil
+    local gone = summary(undo_of(player))
+    local u = f["trash-slot-undo"]
+    u.visible = gone ~= nil
+    if f["trash-slot-undo-space"] then f["trash-slot-undo-space"].visible = gone == nil end
+    u.tooltip = gone and { "trash-slot.undo-tooltip", what(gone) } or nil
   end
+end
+
+-- a destroy, told at the cursor (it can come back with the undo button)
+local function told(player, gone)
+  if gone then player.create_local_flying_text({ text = { "trash-slot.destroyed", what(gone) }, create_at_cursor = true }) end
 end
 
 -- the floating slot shows while a window with the inventory is open
@@ -163,12 +217,50 @@ local function fill_frame(f, vertical)
     sprite = "utility/trash", tooltip = { drag and "trash-slot.slot-tooltip-drag" or "trash-slot.slot-tooltip" },
     raise_hover_events = true, mouse_button_filter = { "left", "right" } })
   local grip = f.add({ type = "sprite-button", name = "trash-slot-move", style = "frame_action_button",
-    sprite = "utility/expand", tooltip = { "trash-slot.move-tooltip" } })
-  grip.style.size = 20
+    sprite = "trash-slot-move", tooltip = { "trash-slot.move-tooltip" } })
+  grip.style.size = GRIP
+  -- (shown while something destroyed can come back: refresh)
+  local undo = f.add({ type = "sprite-button", name = "trash-slot-undo", style = "frame_action_button",
+    sprite = "utility/reset_white", visible = false })
+  undo.style.size = GRIP
+  -- (its place kept while there's nothing to undo: the slot's frame doesn't change size when it comes and goes)
+  local space = f.add({ type = "empty-widget", name = "trash-slot-undo-space" })
+  space.style.size = GRIP
   if drag then
     dnd.draggable(slot, { kind = "trash-slot-move", preview = true, card_size = 40 })
   end
   if vertical then f.style.horizontal_align = "center" else f.style.vertical_align = "center" end
+end
+
+-- the grip's and undo button's icons: dark on a light theme (data.lua has the grip's both ways)
+local function icons(f, player)
+  local th = theme.of(player)
+  local t = th and theme.themes and theme.themes.by_name[th.carrier]
+  local light = t and t.light
+  f["trash-slot-move"].sprite = light and "trash-slot-move-dark" or "trash-slot-move"
+  f["trash-slot-undo"].sprite = light and "utility/reset" or "utility/reset_white"
+end
+
+-- themes frame f (fse-std); its padding and the grip's size go in as tweaks, so they outlast theme switches
+local function adopt(f)
+  theme.adopt(f)
+  local tags = f.tags
+  if tags.fstd_role then
+    local t = tags.fstd_tweak or {}
+    t.padding = 6
+    theme.apply(f, tags.fstd_role, t)
+  else
+    f.style.padding = 6
+  end
+  -- (plain "close" buttons whose icons icons() picks: adopt()'s title-bar handling would put a white icon of a mod's
+  -- own back on the game's dark button after a theme switch)
+  for _, b in pairs({ f["trash-slot-move"], f["trash-slot-undo"] }) do
+    local tags = b.tags
+    tags.fstd_fab = nil
+    b.tags = tags
+    theme.apply(b, "close", { size = GRIP })
+  end
+  icons(f, game.get_player(f.player_index))
 end
 
 local function build(player)
@@ -181,11 +273,17 @@ local function build(player)
   if d.side == FLOAT then
     local f = player.gui.screen.add({ type = "frame", name = "trash-slot-float", direction = "horizontal" })
     local bar = f.add({ type = "empty-widget", style = "draggable_space_header", tooltip = { "trash-slot.bar-tooltip" } })
-    bar.style.width, bar.style.height = 10, 40
+    bar.style.width, bar.style.height = GRIP, 40
     bar.drag_target = f
     fill_frame(f, false)
-    if theme then theme.adopt(f) end
-    f.location = { d.x or 200, d.y or 200 }
+    if theme then adopt(f) end
+    if not d.x then
+      -- (first time floating: left of the character screen, which the game centres; its left edge ~470 GUI units left of the middle; the slot is ~150 wide)
+      local s, res = player.display_scale, player.display_resolution
+      d.x = math.max(0, math.floor(res.width / 2 - 640 * s))
+      d.y = math.max(0, math.floor(res.height / 2 - 60 * s))
+    end
+    f.location = { d.x, d.y }
     show_float(player)
   else
     local side = SIDES[d.side]
@@ -197,11 +295,11 @@ local function build(player)
       if dnd and input.native() then -- a handle to pull it off the window (it floats where it's let go)
         local bar = f.add({ type = "empty-widget", name = "trash-slot-bar", style = "draggable_space_header",
           tooltip = { "trash-slot.bar-tooltip" } })
-        if vertical then bar.style.width, bar.style.height = 40, 10 else bar.style.width, bar.style.height = 10, 40 end
+        if vertical then bar.style.width, bar.style.height = 40, GRIP else bar.style.width, bar.style.height = GRIP, 40 end
         dnd.draggable(bar, { kind = "trash-slot-move", preview = true, sprite = "utility/trash" })
       end
       fill_frame(f, vertical)
-      if theme then theme.adopt(f) end
+      if theme then adopt(f) end
     end
   end
   refresh(player)
@@ -234,12 +332,16 @@ local function on_delete(e, all)
   if p.opened_gui_type == defines.gui_type.none then return end -- only with a window open, like the original
   local trash, cursor = trash_of(p), p.cursor_stack
   if storage.hover and storage.hover[p.index] and not (cursor and cursor.valid_for_read) then
-    fill(trash, {}) -- Delete on the slot itself: gone for good
+    told(p, fill(trash, {}, undo_of(p))) -- Delete on the slot itself: destroyed (the undo button brings it back)
     return refresh(p)
   end
   local sp = e.selected_prototype
   local name = sp and sp.base_type == "item" and sp.name or nil
-  if throw(trash, sources(p), cursor, name, sp and sp.quality or "normal", all) then refresh(p) end
+  local ok, gone = throw(trash, sources(p), cursor, name, sp and sp.quality or "normal", all, undo_of(p))
+  if ok then
+    told(p, gone)
+    refresh(p)
+  end
 end
 
 -- (in storage, not a local: Delete on the slot changes the game, so every peer must agree it was hovered)
@@ -260,7 +362,11 @@ local handlers = {
   [defines.events.on_player_removed] = function(e)
     local inv = storage.trash and storage.trash[e.player_index]
     if inv and inv.valid then inv.destroy() end
-    for _, t in pairs({ storage.trash, storage.dock, storage.hover }) do t[e.player_index] = nil end
+    local undo = storage.undo and storage.undo[e.player_index]
+    if undo and undo.valid then undo.destroy() end
+    for _, t in pairs({ storage.trash, storage.dock, storage.hover, storage.undo }) do
+      if t then t[e.player_index] = nil end
+    end
   end,
   [defines.events.on_gui_opened] = opened,
   [defines.events.on_gui_closed] = opened,
@@ -285,13 +391,19 @@ local handlers = {
     elseif el.name == "trash-slot-button" then
       local trash, cursor = trash_of(p), p.cursor_stack
       if cursor and cursor.valid_for_read then
-        fill(trash, { cursor })
+        told(p, fill(trash, { cursor }, undo_of(p)))
       elseif e.button == defines.mouse_button_type.right then
-        fill(trash, {})
+        told(p, fill(trash, {}, undo_of(p)))
       else
         local main = p.get_main_inventory()
         if e.shift and main then take(trash, cursor, main, true) else take(trash, cursor, nil, false) end
       end
+      refresh(p)
+    elseif el.name == "trash-slot-undo" then
+      -- (back into the inventory; what doesn't fit stays undoable)
+      local main, undo = p.get_main_inventory(), undo_of(p)
+      if main then take(undo, nil, main, true) end
+      if summary(undo) then p.create_local_flying_text({ text = { "trash-slot.undo-full" }, create_at_cursor = true }) end
       refresh(p)
     end
   end,
@@ -336,14 +448,31 @@ if dnd then
       float_at(player, m.x - 58 * s, m.y - 36 * s) -- (the slot centred under the cursor)
     end
   end)
-  events.register({ input.handlers, dnd.handlers, theme and theme.handlers or {}, handlers })
+  -- (after fse-std's restyle: the grip's icon follows the theme)
+  local retheme = theme and { ["fstd-theme-changed"] = function(e)
+    local p = game.get_player(e.player_index)
+    if not p then return end
+    for _, f in ipairs(frames(p)) do icons(f, p) end
+  end } or {}
+  events.register({ input.handlers, dnd.handlers, theme and theme.handlers or {}, handlers, retheme })
 else
   for ev, fn in pairs(handlers) do script.on_event(ev, fn) end
 end
 
 remote.add_interface("trash-slot", {
-  -- for scripts and tests: throw(trash, {inventories}, cursor_stack|nil, name, quality, all) -> bool
-  throw = throw,
+  -- for scripts and tests: throw(trash, {inventories}, cursor_stack|nil, name, quality, all, undo|nil) -> bool
+  throw = function(...) return (throw(...)) end,
+  undo = function(i) return undo_of(game.get_player(i)) end,
+  -- what the mouse does, for tests: click(i, "slot"|"undo", {button = "left"|"right", shift})
+  click = function(i, which, o)
+    o = o or {}
+    local f = frames(game.get_player(i))[1]
+    local el = f and (which == "undo" and f["trash-slot-undo"] or f["trash-slot-inner"]["trash-slot-button"])
+    if not el then return false end
+    handlers[defines.events.on_gui_click]({ element = el, player_index = i, shift = o.shift,
+      button = defines.mouse_button_type[o.button or "left"] })
+    return true
+  end,
   take = take,
   count = count,
   trash = function(i) return trash_of(game.get_player(i)) end,

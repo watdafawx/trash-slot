@@ -43,5 +43,20 @@ script.on_event(defines.events.on_tick, function(e)
   armor[1].label = "keep me"
   R("throw", trash, { armor }, nil, "blueprint", "normal", false)
   check("item data survives the trash", trash[1].valid_for_read and trash[1].label == "keep me")
+
+  -- undo: what a throw destroys goes into the undo inventory (one level), take() brings it back
+  local undo = game.create_inventory(1)
+  main.clear()
+  main.insert({ name = "iron-plate", count = 30 })
+  main.insert({ name = "stone", count = 10 })
+  R("throw", trash, { main }, nil, "iron-plate", "normal", false, undo)
+  check("destroyed stack kept for undo", trash[1].name == "iron-plate" and undo[1].valid_for_read
+    and undo[1].label == "keep me", undo[1].valid_for_read and undo[1].name)
+  R("throw", trash, { main }, nil, "stone", "normal", false, undo)
+  check("next destroy replaces the undo", #undo == 1 and undo[1].name == "iron-plate" and undo[1].count == 30)
+  R("take", undo, nil, main, true)
+  check("undo puts it back", undo.is_empty() and main.get_item_count("iron-plate") == 30 and R("count", trash) == 10)
+  R("throw", trash, { main }, nil, "iron-plate", "normal", false) -- (no undo inventory: plain destroy)
+  check("without an undo it's gone", undo.is_empty() and R("count", trash) == 30)
   helpers.write_file("ts-test.txt", table.concat(out, "\n") .. "\n")
 end)
