@@ -14,7 +14,7 @@ ROOT = MOD.parent
 sys.path.insert(0, str(ROOT))
 from factorio_paths import PATHS  # noqa: E402
 
-from factorio_paths import run_dir  # noqa: E402
+from factorio_paths import run_dir, watch_game  # noqa: E402
 RUN = run_dir(Path(__file__).resolve().parent / "run")
 MODS = RUN / "ts-mods-drag"
 OUT = RUN / "script-output"
@@ -39,8 +39,7 @@ subprocess.run(common + ["--create", str(save)], capture_output=True, check=True
 # (through the launcher, so fse is in the game)
 env = {k: v for k, v in os.environ.items() if k != "FSE_OFF"}
 launcher = Path(os.environ.get("FSE_DIR", ROOT.parent / "fse" / "dist")) / "fse-launcher.exe"
-game = subprocess.Popen([str(launcher)] + common[1:] + ["--load-game", str(save.resolve())], stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL, env=env)
+game = watch_game([str(launcher)] + common[1:] + ["--load-game", str(save.resolve())], env=env)
 start = time.time()
 while time.time() - start < 150 and not (OUT / "ts-drag-done.txt").exists() and game.poll() is None:
     time.sleep(1)

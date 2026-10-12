@@ -14,7 +14,7 @@ ROOT = MOD.parent
 sys.path.insert(0, str(ROOT))
 from factorio_paths import PATHS  # noqa: E402
 
-from factorio_paths import run_dir  # noqa: E402
+from factorio_paths import run_dir, watch_game  # noqa: E402
 RUN = run_dir(Path(__file__).resolve().parent / "run")
 MODS = RUN / "ts-mods-gui"
 OUT = RUN / "script-output"
@@ -38,8 +38,7 @@ subprocess.run(common + ["--create", str(save)], capture_output=True, check=True
 
 # Steam restarts a directly started game (dropping our arguments) unless it looks Steam-launched
 env = dict(os.environ, SteamAppId="427520", SteamGameId="427520")
-game = subprocess.Popen(common + ["--load-game", str(save.resolve())], stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL, env=env)
+game = watch_game(common + ["--load-game", str(save.resolve())], env=env)
 start = time.time()
 while time.time() - start < 150 and not (OUT / "ts-gui-done.txt").exists() and game.poll() is None:
     time.sleep(1)
