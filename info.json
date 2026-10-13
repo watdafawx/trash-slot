@@ -1,12 +1,12 @@
 {
   "name": "wx-trash-slot",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "title": "Trash Slot",
   "author": "mtopfox",
   "factorio_version": "2.0",
   "description": "A trash slot attached to your inventory (port of the Minecraft mod TrashSlot). Hover a stack and press Delete to throw it in; the next delete destroys what was there (one undo brings the last destroyed stack back). Shift+Delete throws in every stack of that item. Click the slot to take it back, Delete on it destroys it. The slot sits beside the window or floats anywhere; with FSE, drag it. Safe to add or remove at any time.",
   "dependencies": [
     "base >= 2.0",
-    "? fse-std >= 0.7.0"
+    "? fse-std >= 0.8.0"
   ]
 }

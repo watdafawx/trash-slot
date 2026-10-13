@@ -12,7 +12,7 @@ script.on_init(function()
 end)
 
 local function shot(p, file)
-  game.take_screenshot({ player = p, show_gui = true, path = file, resolution = { 1920, 1080 }, zoom = 1 })
+  game.take_screenshot({ player = p, show_gui = true, path = file, resolution = { p.display_resolution.width, p.display_resolution.height }, zoom = 1 })
 end
 local function button(p, a)
   local f = p.gui.relative["trash-slot-" .. (a or "controller_gui")]
@@ -68,8 +68,11 @@ script.on_event(defines.events.on_tick, function(e)
     R("dock", 1, 5) -- (first float: no place yet)
     local f = p.gui.screen["trash-slot-float"]
     local res, sc = p.display_resolution, p.display_scale
-    check("first float sits left of the centred inventory", f and f.location.x > 0
-      and f.location.x + 120 * sc < res.width / 2 - 400 * sc and math.abs(f.location.y - res.height / 2) < 120 * sc,
+    -- (left of the inventory when there is room for it there; a screen the inventory fills: at its left edge)
+    local room = res.width / 2 - 470 * sc > 170 * sc
+    check("first float sits left of the centred inventory", f and f.location.x >= 0
+      and (not room or (f.location.x > 0 and f.location.x + 120 * sc < res.width / 2 - 400 * sc))
+      and math.abs(f.location.y - res.height / 2) < 120 * sc,
       f and (f.location.x .. "," .. f.location.y .. " of " .. res.width .. "x" .. res.height .. " @" .. sc))
     shot(p, "ts-gui-4a-float-default.png")
   elseif t == 100 then
@@ -94,7 +97,38 @@ script.on_event(defines.events.on_tick, function(e)
     R("press", 1, false, { base_type = "item", derived_type = "item", name = "coal", quality = "normal" })
     check("from the opened chest", R("count", R("trash", 1)) == 50 and p.opened.get_item_count("coal") == 0)
     shot(p, "ts-gui-5-chest.png")
-  elseif t == 170 then
+  elseif t == 160 then
+    -- fse-std's window scale (150 %): the docked slot keeps the game's scale (it lines up with the inventory's own
+    -- slots); the floating one grows, and stays on the screen
+    remote.call("fse-std", "set_window_scale", 1, 150)
+  elseif t == 162 then
+    local r = p.gui.relative["trash-slot-controller_gui"]
+    local cr = p.gui.relative["trash-slot-container_gui"]
+    check("scale: docked slot keeps the game's scale", r and cr and (r.tags.fstd_scale or 1) == 1
+      and (cr.tags.fstd_scale or 1) == 1 and cr["trash-slot-frame"]["trash-slot-move"].style.minimal_width == 24,
+      cr and (tostring(cr.tags.fstd_scale) .. " grip " .. tostring(cr["trash-slot-frame"]["trash-slot-move"].style.minimal_width)))
+    shot(p, "ts-gui-6-scale-docked.png")
+  elseif t == 185 then
+    p.opened = defines.gui_type.controller
+    R("dock", 1, 5, 100, 300)
+  elseif t == 187 then
+    local f = p.gui.screen["trash-slot-float"]
+    check("scale: floating slot drawn at 150 %", f and f.tags.fstd_scale == 1.5 and R("scale", 1) == 1.5
+      and f["trash-slot-move"].style.minimal_width == 36 and f["trash-slot-undo"].style.minimal_width == 36,
+      f and (tostring(f.tags.fstd_scale) .. " grip " .. tostring(f["trash-slot-move"].style.minimal_width)))
+    shot(p, "ts-gui-7-scale-float.png")
+  elseif t == 210 then
+    -- put at the screen's bottom right corner: kept on it at its scaled size
+    local res = p.display_resolution
+    R("dock", 1, 5, res.width - 5, res.height - 5)
+  elseif t == 212 then
+    local f, res, sc = p.gui.screen["trash-slot-float"], p.display_resolution, p.display_scale * 1.5
+    check("scale: floating slot kept on the screen", f and f.location.x >= 0 and f.location.y >= 0
+      and f.location.x + 144 * sc <= res.width and f.location.y + 56 * sc <= res.height,
+      f and (f.location.x .. "," .. f.location.y .. " of " .. res.width .. "x" .. res.height .. " @" .. p.display_scale))
+    shot(p, "ts-gui-8-scale-corner.png")
+  elseif t == 240 then
+    remote.call("fse-std", "set_window_scale", 1, 100)
     helpers.write_file("ts-gui.txt", table.concat(out, "\n") .. "\n")
     helpers.write_file("ts-gui-done.txt", "done")
   end

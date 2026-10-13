@@ -30,12 +30,17 @@ Safe to add or remove at any time. Removing the mod destroys whatever is in the 
 
 The slot beside the inventory follows the theme each player picks in [FSE std](https://github.com/watdafawx/fse#themes)'s theme window (its button on the shortcut bar), when FSE std 0.6+ is installed: 12 themes, colours edited live with the FSE loader. Without FSE std it looks as before.
 
-![The slot beside the inventory in Vulcanus, Fulgora and Aquilo](images/themes.jpg)
+With FSE std 0.8.0+ the floating slot is drawn at FSE std's **Window size** (per-player setting, or the theme window):
+the slot, the grip, the undo button and the drag bar grow with it, on top of the game's UI scale, and it stays on the
+screen when the size changes. Docked on a window it keeps the game's UI scale, like that window's own slots, so it
+still lines up with the inventory.
+
+![Left: docked below the character screen. Right: floating, at Window size 150 %, with its undo button](images/slot.jpg)
 
 ## Install
 
 Copy this folder into your mods folder (`%APPDATA%\Factorio\mods`) as `wx-trash-slot` (the internal name: plain `trash-slot` is another mod on the portal).
 
 `test\run.py` runs the headless tests (set `FACTORIO_EXE` if the game isn't in a usual Steam library).
-`test\run_gui.py` opens a real game window and saves screenshots to `test\run\script-output` (close your own game
-first).
+`test\run_gui.py` and `test\run_drag.py` open a real game window and save screenshots to `test\run\script-output`
+(close your own game first); `--scale 2` runs them with the game's UI at 200 %.

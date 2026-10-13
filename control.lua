@@ -164,6 +164,32 @@ local function frames(player)
 end
 
 local GRIP = 24  -- (the grip, undo button and drag bar: big enough to hit)
+local FLOAT_W, FLOAT_H = 150, 60  -- (the floating frame's size at 100 % (~144 x 56: padding, bar, slot, grip, undo's place), with room)
+
+-- Window scale (fse-std 0.8): the floating slot is one of our windows, drawn at the player's "Window size" setting
+-- on top of the game's UI scale (sizes here stay design units: adopt scales them). The docked slot is part of the
+-- game's window it sits on, whose slots are drawn at the game's scale only: it keeps that size (its own Size, 100 %),
+-- so it stays one slot like the window's own.
+local function float_scale(player)
+  if not (theme and theme.window_scale) then return 1 end
+  return (theme.window_scale(player, "trash-slot-float"))
+end
+local function pin_scale(player, root_name)
+  if theme and theme.saved and theme.window_scale then theme.saved(player.index, root_name).scale = 1 end
+end
+
+-- the floating frame kept on the screen (after its scale or the screen changed)
+local function keep_on_screen(player, f)
+  local res, sc = player.display_resolution, player.display_scale * float_scale(player)
+  local loc = f.location
+  local x = math.max(0, math.min(loc.x, math.floor(res.width - FLOAT_W * sc)))
+  local y = math.max(0, math.min(loc.y, math.floor(res.height - FLOAT_H * sc)))
+  if x ~= loc.x or y ~= loc.y then
+    f.location = { x, y }
+    local d = storage.dock and storage.dock[player.index]
+    if d then d.x, d.y = x, y end
+  end
+end
 
 -- "[item=x,quality=q] Name x n" for a summary()
 local function what(g)
@@ -249,6 +275,8 @@ local function adopt(f)
     local t = tags.fstd_tweak or {}
     t.padding = 6
     theme.apply(f, tags.fstd_role, t)
+  elseif theme.style then
+    theme.style(f, { padding = 6 })  -- (at 100 %: drawn at the window's scale)
   else
     f.style.padding = 6
   end
@@ -278,17 +306,20 @@ local function build(player)
     fill_frame(f, false)
     if theme then adopt(f) end
     if not d.x then
-      -- (first time floating: left of the character screen, which the game centres; its left edge ~470 GUI units left of the middle; the slot is ~150 wide)
-      local s, res = player.display_scale, player.display_resolution
-      d.x = math.max(0, math.floor(res.width / 2 - 640 * s))
-      d.y = math.max(0, math.floor(res.height / 2 - 60 * s))
+      -- (first time floating: left of the character screen, which the game centres at its own scale; its left edge
+      -- ~470 GUI units left of the middle. The slot's frame, ~150 wide with a gap, is drawn at its window scale too)
+      local s, fs, res = player.display_scale, float_scale(player), player.display_resolution
+      d.x = math.max(0, math.floor(res.width / 2 - (470 + 170 * fs) * s))
+      d.y = math.max(0, math.floor(res.height / 2 - 60 * fs * s))
     end
     f.location = { d.x, d.y }
+    keep_on_screen(player, f)
     show_float(player)
   else
     local side = SIDES[d.side]
     local vertical = side == "left" or side == "right"
     for _, a in ipairs(ANCHORS) do
+      pin_scale(player, "trash-slot-" .. a)
       local r = player.gui.relative.add({ type = "frame", name = "trash-slot-" .. a, style = "invisible_frame",
         anchor = { gui = defines.relative_gui_type[a], position = defines.relative_gui_position[side] } })
       local f = r.add({ type = "frame", name = "trash-slot-frame", direction = vertical and "vertical" or "horizontal" })
@@ -433,21 +464,31 @@ if dnd then
 
   -- the slot dragged anywhere: it floats where it's let go, or docks when let go against the window's edge
   -- (the release is read on the tick it happens; this is this computer's mouse, so single player only, as dnd is)
-  dnd.on_phase(function(player, phase, payload)
+  dnd.on_phase(function(player, phase, payload, source)
     if payload.kind ~= "trash-slot-move" or phase ~= "end" then return end
     local m = input.this_tick()
     if not m then return end
     local s = player.display_scale
     local w = window_rect()
-    -- (the dragged copy: the slot, 40 px at scale 1, its corner 20 px up-left of the cursor; see dnd card_size)
-    local side = w and touching({ x = m.x - 20, y = m.y - 20, w = 40 * s, h = 40 * s }, w)
+    -- (the dragged copy: the slot, 40 GUI units at the scale of the frame it came from, its corner 20 px up-left of
+    -- the cursor; see dnd card_size)
+    local c = 40 * s * (source and source.valid and theme and theme.scale_of and theme.scale_of(source) or 1)
+    local side = w and touching({ x = m.x - 20, y = m.y - 20, w = c, h = c }, w)
     if side then
       dock_of(player).side = side
       build(player)
     else
-      float_at(player, m.x - 58 * s, m.y - 36 * s) -- (the slot centred under the cursor)
+      local fs = s * float_scale(player)
+      float_at(player, m.x - 58 * fs, m.y - 36 * fs) -- (the slot centred under the cursor, at the float's scale)
     end
   end)
+  -- (the floating slot drawn at another scale: still on the screen)
+  if theme and theme.on_scale then
+    theme.on_scale(function(player, name)
+      local f = name == "trash-slot-float" and player.gui.screen[name]
+      if f and f.valid then keep_on_screen(player, f) end
+    end)
+  end
   -- (after fse-std's restyle: the grip's icon follows the theme)
   local retheme = theme and { ["fstd-theme-changed"] = function(e)
     local p = game.get_player(e.player_index)
@@ -484,6 +525,8 @@ remote.add_interface("trash-slot", {
     build(p)
   end,
   where = function(i) local d = dock_of(game.get_player(i)) return { side = d.side, x = d.x, y = d.y } end,
+  -- the scale the floating slot is drawn at (fse-std's window scale; 1 without it)
+  scale = function(i) return float_scale(game.get_player(i)) end,
   -- what the keys and the mouse do, for tests: press(i, all, selected_prototype), hover(i, on), point(i, what)
   press = function(i, all, sp) on_delete({ player_index = i, selected_prototype = sp }, all) end,
   hover = function(i, on) hover({ player_index = i, element = { name = "trash-slot-button" } }, on) end,

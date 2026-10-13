@@ -16,6 +16,16 @@ from factorio_paths import PATHS  # noqa: E402
 
 from factorio_paths import run_dir, watch_game  # noqa: E402
 RUN = run_dir(Path(__file__).resolve().parent / "run")
+# --scale N: the game's GUI scale (config.ini [interface]); without it, the game picks it (config.ini written again)
+SCALE = sys.argv[sys.argv.index("--scale") + 1] if "--scale" in sys.argv else None
+(RUN / "config.ini").unlink(missing_ok=True)
+RUN = run_dir(RUN)
+CONFIG = RUN / "config.ini"
+if SCALE:
+    # (in a config of its own: appended to config.ini the scale stayed there for the next test using this folder)
+    CONFIG = RUN / "config-scale.ini"
+    CONFIG.write_text((RUN / "config.ini").read_text(encoding="utf-8")
+                      + f"[interface]\nui-scale-mode=manual-pixels\ncustom-ui-scale={SCALE}\n", encoding="utf-8")
 MODS = RUN / "ts-mods-drag"
 OUT = RUN / "script-output"
 
@@ -33,7 +43,7 @@ for f in OUT.glob("ts-drag*"):
     f.unlink()
 save = RUN / "ts-drag.zip"
 save.unlink(missing_ok=True)
-common = [str(PATHS["factorio_exe"]), "--config", str(RUN / "config.ini"), "--mod-directory", str(MODS)]
+common = [str(PATHS["factorio_exe"]), "--config", str(CONFIG), "--mod-directory", str(MODS)]
 subprocess.run(common + ["--create", str(save)], capture_output=True, check=True)
 
 # (through the launcher, so fse is in the game)
@@ -50,3 +60,6 @@ errors = [l for l in log if "Error" in l or "non-recoverable" in l]
 print("screenshots:", sorted(f.name for f in OUT.glob("ts-drag-*.png")))
 print((OUT / "ts-drag.txt").read_text() if (OUT / "ts-drag.txt").exists() else "no result")
 print("errors:", "\n".join(errors[-10:]) or "none")
+result = (OUT / "ts-drag.txt").read_text() if (OUT / "ts-drag.txt").exists() else ""
+if not result or "FAIL" in result or errors:
+    sys.exit(1)

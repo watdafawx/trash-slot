@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.6
+Date: 2026-10-13
+  Changes:
+    - With fse-std 0.8: the floating slot is drawn at fse-std's "Window size" setting (the slot, the grip, the undo
+      button and the drag bar grow with it), on top of the game's UI scale. Its first spot left of the character
+      screen and the spot it lands on when dragged follow that size, and it stays on the screen when the size changes.
+    - The slot docked on a window keeps the game's UI scale, like that window's own slots, so it still lines up with
+      the inventory. Needs fse-std 0.8.0 for the window size (older fse-std: as before).
+---------------------------------------------------------------------------------------------------
 Version: 0.3.5
 Date: 2026-10-12
   Changes:
